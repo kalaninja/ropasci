@@ -41,10 +41,9 @@ use crate::game::{Game, GameStage, Move};
 
 mod validation;
 mod game;
-
+mod benchmarking;
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
 

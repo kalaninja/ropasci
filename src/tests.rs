@@ -384,11 +384,6 @@ fn can_end_game_win() {
         // end game
         run_to_block(40);
 
-        println!("{:?}", Balances::free_balance(1));
-        println!("{:?}", Balances::free_balance(2));
-        println!("{:?}", Balances::free_balance(3));
-        println!("{:?}", Balances::free_balance(4));
-
         // players 2 and 3 win. player 1 loses. player 4 misses reveal and loses
         assert!(matches!(
             (Balances::free_balance(1), Balances::free_balance(2), Balances::free_balance(3), Balances::free_balance(4)),
