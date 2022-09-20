@@ -70,15 +70,6 @@ impl Hand {
         }
     }
 
-    pub fn beats(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Hand::Rock, Hand::Scissors) => true,
-            (Hand::Paper, Hand::Rock) => true,
-            (Hand::Scissors, Hand::Paper) => true,
-            _ => false,
-        }
-    }
-
     pub fn beaten_by(&self) -> Self {
         match self {
             Hand::Rock => Hand::Paper,
@@ -105,9 +96,7 @@ impl<MoveHash> Move<MoveHash> {
     pub fn reveal(&mut self, move_reveal: &[u8]) -> Result<(), ()> {
         move_reveal.first()
             .and_then(|&value| Hand::new(value))
-            .map(|hand| {
-                self.hand = Some(hand);
-            })
+            .map(|hand| self.hand = Some(hand))
             .ok_or(())
     }
 }

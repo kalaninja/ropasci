@@ -36,16 +36,19 @@ use sp_std::{
 };
 
 pub use pallet::*;
+use weights::WeightInfo;
 
 use crate::game::{Game, GameStage, Move};
 
 mod validation;
 mod game;
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
+pub mod weights;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 type GameId<T> = <T as Config>::MoveHash;
@@ -96,6 +99,9 @@ pub mod pallet {
         /// Maximum round length.
         #[pallet::constant]
         type MaxRoundLength: Get<u32>;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::event]
@@ -133,7 +139,7 @@ pub mod pallet {
         PlayerRevealMismatch,
     }
 
-    /// The games currently in prob"nonplayer move"gress.
+    /// The games currently in progress.
     #[pallet::storage]
     pub type Games<T> = StorageMap<_, Blake2_128Concat, GameId<T>, GameOf<T>, OptionQuery>;
 
@@ -172,8 +178,13 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
+            let mut weight = T::DbWeight::get().reads(2);
+
             BettingGamesIndex::<T>::mutate_exists(now, |maybe_game_ids| {
                 if let Some(game_ids) = maybe_game_ids.take() {
+                    weight = weight.saturating_add(
+                        T::WeightInfo::on_initialize_betting(game_ids.len() as u32));
+
                     for game_id in game_ids {
                         Self::end_betting(&game_id);
                     }
@@ -182,13 +193,16 @@ pub mod pallet {
 
             RevealingGamesIndex::<T>::mutate_exists(now, |maybe_game_ids| {
                 if let Some(game_ids) = maybe_game_ids.take() {
+                    weight = weight.saturating_add(
+                        T::WeightInfo::on_initialize_revealing(game_ids.len() as u32));
+
                     for game_id in game_ids {
                         Self::end_game(&game_id);
                     }
                 }
             });
 
-            T::DbWeight::get().reads(2)
+            weight
         }
     }
 
@@ -196,7 +210,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Start a new game. The game will be created in "betting" stage. A creator needs to
         /// provide a round length, a bet amount and a move hash. The move hash becomes an game id.
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::start_game())]
         pub fn start(
             origin: OriginFor<T>,
             #[pallet::compact] round_length: T::BlockNumber,
@@ -216,7 +230,7 @@ pub mod pallet {
 
         /// Place a bet on an existing game. The game must be in "betting" stage. A player needs to
         /// provide a game id and a move hash.
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::join_game())]
         pub fn join(
             origin: OriginFor<T>,
             game_id: GameId<T>,
@@ -238,7 +252,7 @@ pub mod pallet {
         /// and a move reveal. The move reveal will be hashed and compared with the move hash.
         /// The first byte of the reveal is the move itself. The rest of the reveal is the salt.
         /// The actual move should be one of the following: 0 - Rock, 1 - Paper, 2 - Scissors.
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::reveal_move(move_reveal.len() as u32))]
         pub fn reveal(
             origin: OriginFor<T>,
             game_id: GameId<T>,
@@ -291,7 +305,7 @@ impl<T: Config> Pallet<T> {
         Games::<T>::mutate(game_id, |maybe_game| {
             maybe_game.as_mut().map(|game| game.join())
         });
-        Moves::<T>::insert(&game_id, joiner, Move::new(move_hash));
+        Moves::<T>::insert(game_id, joiner, Move::new(move_hash));
     }
 
     fn end_betting(game_id: &GameId<T>) {

@@ -10,8 +10,4 @@ Cargo.lock
 **/*.rs.bk
 
 /.idea
-
-
-# Added by cargo
-
-/target
+**/target/

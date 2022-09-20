@@ -70,6 +70,7 @@ impl pallet_ropasci::Config for Test {
     type Currency = Balances;
     type MinRoundLength = ConstU32<10>;
     type MaxRoundLength = ConstU32<50>;
+    type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
